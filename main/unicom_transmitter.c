@@ -37,8 +37,8 @@ uint8_t* init_transmitter(char *id, uint8_t channel, freedom_outside_cb_t packet
     esp_wifi_set_channel(channel, 0);
     if(packet_sent_callback != NULL) wifi_register_send_pkt_freedom_cb(packet_sent_callback);
 
-    // Sets the frame control bits
-    packet->header.wrapping_start[0] = 0x58;
+    // Sets the frame control bits (type = 10, subtype = 0 [simple data frame])
+    packet->header.wrapping_start[0] = 0x08; 
 
     // Generate the hash identifier from the transmitter name/id and set it
     unsigned long hash = generate_hash(id);
@@ -69,7 +69,7 @@ esp_err_t transmit(char *receiver, unsigned short size) {
     }
 
     // Send the packet
-    return esp_wifi_80211_tx(WIFI_IF_STA, packet, sizeof(packet->header) + size + 2, false);
+    return esp_wifi_80211_tx(WIFI_IF_STA, packet, sizeof(packet->header) + 2 + size, false);
 }
 
 /*

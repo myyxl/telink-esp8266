@@ -13,14 +13,11 @@ void app_main() {
         buffer[i] = (unsigned char) message[i];
     }
 
-    // Send in loop
-    while(1) {
-        esp_err_t code = transmit("telink-core", sizeof(message));
-        if(code == ESP_OK) {
-            ESP_LOGI("transmitter", "sent!");
-        } else {
-            ESP_LOGE("transmitter", "Error code: %x", code);
-        }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    esp_err_t code = transmit("telink-core", sizeof(message));
+    if(code == ESP_OK) {
+        ESP_LOGI("transmitter", "sent!");
+    } else {
+        ESP_LOGE("transmitter", "Error code: %x", code);
     }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
