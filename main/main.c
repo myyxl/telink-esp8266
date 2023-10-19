@@ -10,7 +10,7 @@ void app_main() {
 
     // Fill buffer
     for(int i = 0; i < sizeof(message); i++) {
-        buffer[i] = (unsigned char) message[i];
+        buffer[i] = message[i];
     }
 
     esp_err_t code = transmit("telink-core", sizeof(message));
