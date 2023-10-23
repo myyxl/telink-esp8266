@@ -35,7 +35,7 @@ void app_task() {
         if(code != ESP_OK) {
             ESP_LOGE("transmitter", "Error code: %x", code);
         }
-        vTaskDelay(250 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_RATE_MS);
     }
 }
 
