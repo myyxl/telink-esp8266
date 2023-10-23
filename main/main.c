@@ -5,6 +5,7 @@
 #include <math.h>
 
 void app_task() {
+    ESP_LOGI("bmp388", "Initializing sensor");
     bmp388_basic_init(BMP388_INTERFACE_IIC, BMP388_ADDRESS_ADO_LOW);
     vTaskDelay(2000 / portTICK_RATE_MS);
 
@@ -19,11 +20,15 @@ void app_task() {
     uint8_t *acceleration_ptr = (uint8_t*) &acceleration;
     uint8_t *temperature_ptr = (uint8_t*) &temperature;
 
-    // Figure out base altitute
+    ESP_LOGI("bmp388", "Calibrating base altitute");
     float base_altitute = 0.0f;
-    bmp388_basic_read((float *)&temperature, (float *)&pressure);
-    base_altitute = 44330 * (1 - pow((pressure/101325), (1/5.255)));
-    if(base_altitute < 0) base_altitute = 0.0f; 
+    for (int i = 0; i < 20; i++) {
+        float reading = 0.0f;
+        bmp388_basic_read((float *)&temperature, (float *)&reading);
+        base_altitute += reading;
+        vTaskDelay(1500 / portTICK_RATE_MS);
+    }
+    base_altitute = base_altitute / 20;
 
     // Init transmitter
     uint8_t* buffer = init_transmitter("telink-esp8266", 0x07, NULL);
