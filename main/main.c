@@ -18,7 +18,13 @@ void app_task() {
     uint8_t *velocity_ptr = (uint8_t*) &velocity;
     uint8_t *acceleration_ptr = (uint8_t*) &acceleration;
     uint8_t *temperature_ptr = (uint8_t*) &temperature;
-    
+
+    // Figure out base altitute
+    float base_altitute = 0.0f;
+    bmp388_basic_read((float *)&temperature, (float *)&pressure);
+    base_altitute = 44330 * (1 - pow((pressure/101325), (1/5.255)));
+    if(base_altitute < 0) base_altitute = 0.0f; 
+
     // Init transmitter
     uint8_t* buffer = init_transmitter("telink-esp8266", 0x07, NULL);
 
@@ -26,12 +32,17 @@ void app_task() {
     ESP_LOGI("transmitter", "Start transmitting");
     while(1) {
         bmp388_basic_read((float *)&temperature, (float *)&pressure);
+
+        altitute = 44330 * (1 - pow((pressure/101325), (1/5.255))) - base_altitute;
+        if(altitute < 0) altitute = 0.0f;
+
         for (int i = 0; i < 4; i++) {
             buffer[i] = altitute_ptr[i]; 
             buffer[i + 4] = velocity_ptr[i]; 
             buffer[i + 8] = acceleration_ptr[i]; 
             buffer[i + 12] = temperature_ptr[i]; 
         }
+        
         esp_err_t code = transmit("telink-core", 16);
         if(code != ESP_OK) {
             ESP_LOGE("transmitter", "Error code: %x", code);
