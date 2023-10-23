@@ -1,5 +1,9 @@
 {
     "files.associations": {
-        "freertos.h": "c"
+        "freertos.h": "c",
+        "stdio.h": "c",
+        "bmp388.h": "c",
+        "math.h": "c",
+        "esp_log.h": "c"
     }
 }

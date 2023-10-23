@@ -1,11 +1,11 @@
 #include <bmp388.h>
-#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <esp_log.h>
 #include <math.h>
+#include <inttypes.h>
 
-void bmp388_init() {
+void bmp388_init(bmp388_handle *handle) {
 
     // Configuration
     i2c_config_t conf;
@@ -30,11 +30,8 @@ void bmp388_init() {
     }
 
     // Get calibration data
-    bmp388_calibration_t calibration_data = {};
-    bmp388_read_coefficients(&calibration_data);
-
-    // Testing
-    bmp388_sensor_read(&calibration_data);
+    bmp388_calibration_t cal = handle->cal;
+    bmp388_read_coefficients(&cal);
 } 
 
 void bmp388_read(uint8_t reg, uint8_t *data, size_t len) {
@@ -79,13 +76,6 @@ void bmp388_read_coefficients(bmp388_calibration_t *calibration_data) {
     bmp388_read(0x33, (uint8_t*)&t2, 2);
     bmp388_read(0x35, (uint8_t*)&t3, 1);
 
-    t1 = (t1>>8) | (t1<<8);
-    t2 = (t2>>8) | (t2<<8);
-
-    ESP_LOGI("bmp388", "T1: 0x%X", t1);
-    ESP_LOGI("bmp388", "T2: 0x%X", t2);
-    ESP_LOGI("bmp388", "T3: 0x%X", t3);
-
     // Pressure
     bmp388_read(0x36, (uint8_t*)&p1, 2);
     bmp388_read(0x38, (uint8_t*)&p2, 2);
@@ -100,39 +90,77 @@ void bmp388_read_coefficients(bmp388_calibration_t *calibration_data) {
     bmp388_read(0x45, (uint8_t*)&p11, 1);
 
     // Temperature
-    calibration_data->t1 = (uint64_t) (t1 / 64);
-    calibration_data->t2 = (uint64_t) (t2 / 900);
-    calibration_data->t3 = (uint64_t) (t3 / 2304);
+    double temp_var;
+    temp_var = 0.00390625f;
+    calibration_data->t1 = ((double)t1 / temp_var);
+    temp_var = 1073741824.0f;
+    calibration_data->t2 = ((double)t2 / temp_var);
+    temp_var = 281474976710656.0f;
+    calibration_data->t3 = ((double)t3 / temp_var);
+
 
     // Soft reset
-    // uint8_t cmd = 0xB6;
-    // bmp388_write(0x7E, &cmd, 1);
-}
+    // uint8_t ctrl = 0xB6;
+    // bmp388_write(0x7E, &ctrl, 1);
 
-void bmp388_sensor_read(bmp388_calibration_t *cal_data) {
+    // Force enable
     uint8_t ctrl = 0x13;
     bmp388_write(0x1B, &ctrl, 1);
 
+    // Hacky wait
     for(int i = 0; i < 1000; i++) {
         uint8_t status;
         bmp388_read(0x3, &status, 1);
-        if((status & 0x60 )== 0x60) {
-            break;
-        }
+        if((status & 0x60 )== 0x60) break;
     }
 
-    u_int32_t t_data;
-    bmp388_read(0x07, (uint8_t*)&t_data, 3);
+    // Read temperature
+    uint32_t data_xlsb;
+    uint32_t data_lsb;
+    uint32_t data_msb;
+    bmp388_read(0x07, (uint8_t*)&data_xlsb, 1);
+    bmp388_read(0x08, (uint8_t*)&data_lsb, 1);
+    bmp388_read(0x09, (uint8_t*)&data_msb, 1);
 
-    ESP_LOGI("bmp388", "Raw temperature: 0x%X", t_data);
+    data_lsb = data_lsb << 8;
+    data_msb = data_msb << 16;
 
-    u_int64_t partial_data1;
-    u_int64_t partial_data2;
+    int64_t t_data = data_msb | data_lsb | data_xlsb;
 
-    partial_data1 = (t_data - cal_data->t1);
-    partial_data2 = (partial_data1 * cal_data->t2);
+    ESP_LOGI("bmp388", "temp: %d", (int) t_data);
 
-    u_int64_t temp = partial_data2 + (partial_data1 * partial_data1) * cal_data->t3;
+    double partial_data1;
+    double partial_data2;
+
+    partial_data1 = (double)(t_data - calibration_data->t1);
+    partial_data2 = (double)(partial_data1 * calibration_data->t2);
+    double temp = partial_data2 + (partial_data1 * partial_data1) * calibration_data->t3;
+
 
     ESP_LOGI("bmp388", "Current temperature: %d", (int) temp);
 }
+/*
+void bmp388_sensor_read(bmp388_handle *handle) {
+    // Force enable
+    uint8_t ctrl = 0x13;
+    bmp388_write(0x1B, &ctrl, 1);
+
+    // Hacky wait
+    for(int i = 0; i < 1000; i++) {
+        uint8_t status;
+        bmp388_read(0x3, &status, 1);
+        if((status & 0x60 )== 0x60) break;
+    }
+
+    // Read temperature
+    uint64_t t_data;
+    bmp388_read(0x07, (uint8_t*)&t_data, 3);
+    ESP_LOGI("bmp388", "temp: %d", (int) t_data);
+
+    double partial_data1;
+    double partial_data2;
+
+    partial_data1 = (double)(t_data - handle->cal.t1);
+    partial_data2 = (double)(partial_data1 * handle->cal.t2);
+    handle->temperature = partial_data2 + (partial_data1 * partial_data1) * handle->cal.t3;
+}*/
