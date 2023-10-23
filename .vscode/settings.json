@@ -4,6 +4,10 @@
         "stdio.h": "c",
         "bmp388.h": "c",
         "math.h": "c",
-        "esp_log.h": "c"
+        "esp_log.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c",
+        "driver_bmp388_basic.h": "c"
     }
 }
