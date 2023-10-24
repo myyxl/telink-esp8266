@@ -9,26 +9,28 @@ void app_task() {
     bmp388_basic_init(BMP388_INTERFACE_IIC, BMP388_ADDRESS_ADO_LOW);
     vTaskDelay(2000 / portTICK_RATE_MS);
 
-    float altitute = 0.0f;
+    float altitude = 0.0f;
     float velocity = 0.0f;
     float acceleration = 0.0f;
     float temperature = 0.0f;
     float pressure = 0.0f;
 
-    uint8_t *altitute_ptr = (uint8_t*) &altitute;
+    uint8_t *altitude_ptr = (uint8_t*) &altitude;
     uint8_t *velocity_ptr = (uint8_t*) &velocity;
     uint8_t *acceleration_ptr = (uint8_t*) &acceleration;
     uint8_t *temperature_ptr = (uint8_t*) &temperature;
 
-    ESP_LOGI("bmp388", "Calibrating base altitute");
-    float base_altitute = 0.0f;
+    ESP_LOGI("bmp388", "Calibrating base altitude");
+    float base_altitude = 0.0f;
     for (int i = 0; i < 20; i++) {
         float reading = 0.0f;
         bmp388_basic_read((float *)&temperature, (float *)&reading);
-        base_altitute += reading;
+        base_altitude += 44330 * (1 - pow((reading/101325), (1/5.255)));
+        ESP_LOGI("bmp388", "Reading[%d/20]: %d", i+1, (int) reading);
         vTaskDelay(1500 / portTICK_RATE_MS);
     }
-    base_altitute = base_altitute / 20;
+    base_altitude = base_altitude / 20;
+    ESP_LOGI("bmp388", "Base altitude: %d", (int) base_altitude);
 
     // Init transmitter
     uint8_t* buffer = init_transmitter("telink-esp8266", 0x07, NULL);
@@ -38,11 +40,12 @@ void app_task() {
     while(1) {
         bmp388_basic_read((float *)&temperature, (float *)&pressure);
 
-        altitute = 44330 * (1 - pow((pressure/101325), (1/5.255))) - base_altitute;
-        if(altitute < 0) altitute = 0.0f;
+        altitude = 44330 * (1 - pow((pressure/101325), (1/5.255))) - base_altitude;
+        if(altitude < 0) altitude = 0.0f;
 
+        ESP_LOGI("bmp388", "altitude: %d", (int) altitude);
         for (int i = 0; i < 4; i++) {
-            buffer[i] = altitute_ptr[i]; 
+            buffer[i] = altitude_ptr[i]; 
             buffer[i + 4] = velocity_ptr[i]; 
             buffer[i + 8] = acceleration_ptr[i]; 
             buffer[i + 12] = temperature_ptr[i]; 
