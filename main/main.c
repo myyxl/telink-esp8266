@@ -26,14 +26,14 @@ void app_task() {
     float base_altitude = 0.0f;
 
     ESP_LOGI("bmp388", "Calibrating base altitude");
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 30; i++) {
         float reading = 0.0f;
         bmp388_basic_read((float *)&temperature, (float *)&reading);
         base_altitude += 44330 * (1 - pow((reading/101325), (1/5.255)));
-        ESP_LOGI("bmp388", "Reading[%d/20]: %d", i+1, (int) reading);
+        ESP_LOGI("bmp388", "Reading[%d/30]: %d", i+1, (int) reading);
         vTaskDelay(1500 / portTICK_RATE_MS);
     }
-    base_altitude = base_altitude / 20;
+    base_altitude = base_altitude / 30;
     ESP_LOGI("bmp388", "Base altitude: %d", (int) base_altitude);
 
     // Init transmitter
@@ -48,6 +48,8 @@ void app_task() {
         if(altitude < 0) altitude = 0.0f;
         if(last_altitude != 0.0f) velocity = altitude - last_altitude;
         if(last_velocity != 0.0f) acceleration = velocity - last_velocity;
+        if(velocity < 0) velocity = 0.0f;
+        if(acceleration < 0) acceleration = 0.0f;
 
         for (int i = 0; i < 4; i++) {
             buffer[i] = altitude_ptr[i]; 
